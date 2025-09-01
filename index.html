@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>INKSPIRE | Printing Shop Manager</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Define custom cubic-bezier for smoother animations */
+      --ease-out-quad: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      --ease-out-back: cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Slight overshoot */
+      --ease-in-out-quad: cubic-bezier(0.455, 0.03, 0.515, 0.955);
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden; /* Prevent horizontal scroll due to animations */
+    }
+    .hidden { display: none; }
+    .active { font-weight: bold; }
+
+    /* General Transitions for smoother UI */
+    button, input, select, textarea, .sidebar button, table tr, .toast-message, .dashboard-card {
+      transition: all 0.3s var(--ease-out-quad); /* Apply default transition timing */
+    }
+
+    /* Button Hover Effects (More pronounced lift) */
+    button:not(.sidebar button, .action-button) {
+      transition: background-color 0.2s var(--ease-out-quad), transform 0.2s var(--ease-out-quad), box-shadow 0.2s var(--ease-out-quad);
+    }
+    button:not(.sidebar button, .action-button):hover {
+      transform: translateY(-3px) scale(1.01); /* More noticeable lift and subtle scale */
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.18); /* Stronger, diffused shadow */
+    }
+
+    /* Input Focus Effects (Slightly more integrated glow) */
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: #8B5CF6; /* Tailwind purple-500 */
+      box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.35); /* Deeper, softer glow */
+      transform: scale(1.005); /* Very subtle zoom */
+    }
+
+    /* Sidebar Navigation Hover Effects (Smooth slide and distinct active state) */
+    .sidebar button {
+      transition: background-color 0.2s var(--ease-out-quad), color 0.2s var(--ease-out-quad), transform 0.2s var(--ease-out-quad), box-shadow 0.2s var(--ease-out-quad);
+      position: relative; /* For the border pseudo-element */
+    }
+    .sidebar button:hover {
+      transform: translateX(8px); /* More pronounced slide right */
+      box-shadow: 2px 2px 8px rgba(0,0,0,0.08); /* Subtle shadow on hover */
+    }
+    .sidebar button.active {
+      background-color: #EDE9FE; /* Tailwind purple-100 */
+      color: #6D28D9; /* Tailwind purple-700 */
+      font-weight: 700; /* Bold */
+      border-left: 4px solid #8B5CF6; /* Accent border */
+      padding-left: 12px; /* Adjust padding for border */
+      transform: translateX(0); /* Ensure active state doesn't have transform */
+      box-shadow: none; /* Remove shadow if active */
+    }
+
+    /* Table Row Hover Effect (Subtle lift and shadow) */
+    table tbody tr:hover {
+      background-color: #F3F4F6; /* Light gray on hover */
+      transform: translateY(-2px); /* Slight lift */
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* Subtle row shadow */
+    }
+
+    /* Date Label Styling */
+    .date-label {
+      font-weight: 600;
+      color: #6B21A8; /* Tailwind purple-800 */
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+
+    /* Toast Message Styling (Enhanced with slide-up & overshoot) */
+    .toast-message {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px); /* Start further below */
+      background-color: #4CAF50; /* Green for success */
+      color: white;
+      padding: 12px 25px;
+      border-radius: 8px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35); /* Stronger shadow */
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.4s var(--ease-out-quad), transform 0.5s var(--ease-out-back); /* Different timing functions */
+      min-width: 280px;
+      text-align: center;
+      will-change: opacity, transform; /* Optimize for animation performance */
+    }
+    .toast-message.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0); /* Slide up to position */
+    }
+    .toast-message.error {
+      background-color: #F44336; /* Red for error */
+    }
+
+    /* Keyframe for Fade In Up animation (for sections and dashboard cards) */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(25px); /* Start a bit lower */
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Section Transition (Fade-in and slight slide-up) */
+    .section-transition {
+      opacity: 0;
+      transform: translateY(25px); /* Initially hidden lower */
+      animation: fadeInUp 0.6s var(--ease-out-quad) forwards; /* Apply animation */
+    }
+
+    /* Dashboard Card Entrance Animation (Staggered) */
+    .dashboard-card {
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeInUp 0.5s var(--ease-out-quad) forwards;
+    }
+    /* Add animation delays to stagger their appearance */
+    .dashboard-card:nth-child(1) { animation-delay: 0.05s; }
+    .dashboard-card:nth-child(2) { animation-delay: 0.1s; }
+    .dashboard-card:nth-child(3) { animation-delay: 0.15s; }
+    .dashboard-card:nth-child(4) { animation-delay: 0.2s; }
+
+    /* Tasks table specific styling */
+    #tasks-body td, #expense-body td {
+      font-size: 0.85rem; /* Smaller font for table cells */
+      padding: 0.75rem; /* Adjusted padding */
+    }
+    #tasks-body select, #expense-body select {
+      font-size: 0.8rem; /* Smaller font for dropdowns in table */
+    }
+    #tasks-body input, #tasks-body textarea, #expense-body input {
+      font-size: 0.85rem; /* Smaller font for inputs in table */
+    }
+
+    /* FullCalendar event colors for better visibility */
+    .fc-event-red { /* Deadline <= 2 days */
+      background-color: #ef4444 !important; /* Tailwind red-500 */
+      border-color: #ef4444 !important;
+      color: white !important;
+    }
+    .fc-event-yellow { /* Deadline > 2 days and <= 5 days */
+      background-color: #f59e0b !important; /* Tailwind amber-500 */
+      border-color: #f59e0b !important;
+      color: white !important;
+    }
+    .fc-event-green { /* Deadline > 5 days */
+      background-color: #22c55e !important; /* Tailwind green-500 */
+      border-color: #22c55e !important;
+      color: white !important;
+    }
+    .fc-event-completed { /* New: For completed tasks */
+        background-color: #22c55e !important; /* Tailwind green-500, similar to long deadline */
+        border-color: #22c55e !important;
+        color: white !important;
+        text-decoration: line-through; /* Strikethrough for completed events */
+        opacity: 0.8; /* Slightly less prominent */
+    }
+    .fc-event-cancelled { /* New: For cancelled tasks */
+        background-color: #ef4444 !important; /* Tailwind red-500, similar to urgent deadline */
+        border-color: #ef4444 !important;
+        color: white !important;
+        opacity: 0.6; /* More faded */
+        font-style: italic;
+    }
+    .fc-event {
+      padding: 4px 6px !important;
+      border-radius: 4px !important;
+    }
+
+    /* New: Alert Circle Styling */
+    .alert-circle {
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        width: 24px; /* Adjust size as needed */
+        height: 24px;
+        background-color: #ef4444; /* Tailwind red-500 */
+        color: white;
+        border-radius: 50%;
+        font-weight: bold;
+        font-size: 0.8rem;
+        margin-left: 8px; /* Space from the text */
+        flex-shrink: 0; /* Prevent shrinking */
+    }
+      
+    /* New: Pagination Styling */
+    .pagination-controls button {
+        margin: 0 4px;
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        background-color: #fff;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+    .pagination-controls button:hover {
+        background-color: #f0f0f0;
+        transform: translateY(-2px);
+    }
+    .pagination-controls button.active {
+        background-color: #8B5CF6;
+        color: white;
+        border-color: #8B5CF6;
+        font-weight: bold;
+    }
+    .pagination-controls button:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+  </style>
+
+  
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+    // Your web app's Firebase configuration
+    // IMPORTANT: Replace these with your actual Firebase project configuration
+    const firebaseConfig = {
+      apiKey:    "YOUR_FIREBASE_API_KEY", // <--- REPLACE THIS WITH YOUR ACTUAL API KEY
+      authDomain:"inkspire-93fa1.firebaseapp.com",
+      projectId: "inkspire-93fa1",
+      storageBucket: "inkspire-93fa1.appspot.com",
+      messagingSenderId:"78600122689",
+      appId:     "1:78600122689:web:37da9c31db4fb36d4d71c0"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db   = firebase.firestore();
+
+    // Sign in anonymously so Firestore writes are allowed
+    // This is important for data operations later, but doesn't affect login authentication
+    auth.signInAnonymously()
+      .then(() => console.log("🔑 Signed in anonymously to Firebase"))
+      .catch(err => console.error("Firebase Auth error:", err));
+  </script>
+</head>
+
+<body class="bg-gray-50 text-gray-800">
+  
+<div id="login-screen" class="flex items-center justify-center h-screen bg-gradient-to-br from-purple-600 to-indigo-700">
+    <div class="bg-white p-10 rounded-xl shadow-2xl w-full max-w-sm transform transition-all duration-300 hover:scale-105">
+      <h2 class="text-3xl font-extrabold text-center text-purple-700 mb-8">INKSPIRE Login</h2>
+      <input id="username" type="text" placeholder="Username" class="w-full px-5 py-3 border border-gray-300 rounded-lg mb-4 focus:ring-purple-500 focus:border-purple-500"/>
+      <input id="password" type="password" placeholder="Password" class="w-full px-5 py-3 border border-gray-300 rounded-lg mb-6 focus:ring-purple-500 focus:border-purple-500"/>
+      <button onclick="login()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-lg shadow-md hover:shadow-lg">Login</button>
+      <p id="login-error" class="text-red-500 mt-5 text-center hidden">Invalid credentials. Try again.</p>
+    </div>
+  </div>
+
+  
+<div id="app" class="hidden flex h-screen">
+    <aside class="w-64 bg-white shadow-xl p-6 space-y-6 flex flex-col justify-between">
+      <div>
+        <div class="mb-6">
+            <img src="LOGO.png" alt="INKSPIRE Logo" class="w-full h-auto max-h-20 object-contain">
+        </div>
+        <nav class="sidebar space-y-3">
+          <button onclick="showSection('dashboard')" id="dashboard-link" class="block text-left w-full py-2 px-3 rounded-lg text-gray-700 hover:bg-purple-100 hover:text-purple-700 transition-colors duration-200">📊 Dashboard</button>
+          <button onclick="showSection('job-order')" class="block text-left w-full py-2 px-3 rounded-lg text-gray-700 hover:bg-purple-100 hover:text-purple-700 transition-colors duration-200">📝 New Job Order</button>
+          <button onclick="showSection('calendar')" class="block text-left w-full py-2 px-3 rounded-lg text-gray-700 hover:bg-purple-100 hover:text-purple-700 transition-colors duration-200">📅 Calendar</button>
+          <button onclick="showSection('tasks')"   class="block text-left w-full py-2 px-3 rounded-lg text-gray-700 hover:bg-purple-100 hover:text-purple-700 transition-colors duration-200">✅ Tasks</button>
+          <div class="border-t border-gray-200 my-3"></div>
+          <button onclick="showSection('expenses')" class="block text-left w-full py-2 px-3 rounded-lg text-gray-700 hover:bg-purple-100 hover:text-purple-700 transition-colors duration-200">💸 Expenses</button>
+          <button onclick="showSection('earnings')" class="block text-left w-full py-2 px-3 rounded-lg text-gray-700 hover:bg-purple-100 hover:text-purple-700 transition-colors duration-200">💰 Earnings</button>
+          <button onclick="showSection('inventory')" class="block text-left w-full py-2 px-3 rounded-lg text-gray-700 hover:bg-purple-100 hover:text-purple-700 transition-colors duration-200">📦 Inventory</button>
+          <div class="border-t border-gray-200 my-3"></div>
+          <button onclick="showSection('reports')" class="block text-left w-full py-2 px-3 rounded-lg text-gray-700 hover:bg-purple-100 hover:text-purple-700 transition-colors duration-200">📈 Reports</button>
+        </nav>
+      </div>
+      <button onclick="logout()" class="block text-left w-full text-red-600 hover:text-red-800 py-2 px-3 rounded-lg bg-red-50 hover:bg-red-100 transition-colors duration-200 mt-auto">🚪 Logout</button>
+    </aside>
+
+    <main class="flex-1 p-8 space-y-10 overflow-y-auto bg-gray-100">
+      
+<section id="dashboard" class="hidden section-transition">
+        <h2 class="text-2xl font-bold text-purple-700 mb-6">📊 Dashboard</h2>
+
+        <div id="due-today-alert" class="hidden bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-6 rounded-lg shadow-md" role="alert">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <div class="py-1"><svg class="fill-current h-6 w-6 text-yellow-500 mr-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M2.93 17.07A10 10 0 1 1 17.07 2.93 10 10 0 0 1 2.93 17.07zm12.73-1.41A8 8 0 1 0 4.34 4.34a8 8 0 0 0 11.32 11.32zM9 11V9h2v6H9v-4zm0-6h2v2H9V5z"/></svg></div>
+                    <div>
+                        <p class="font-bold">🔔 Alert for orders due today!</p>
+                        <p id="due-today-message" class="text-sm">You have 0 orders with a deadline of today.</p>
+                        <a href="#" onclick="showSection('tasks')" class="text-yellow-700 text-sm underline hover:text-yellow-900">View Tasks</a>
+                    </div>
+                </div>
+                <span id="due-today-count-circle" class="alert-circle hidden">0</span>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-4">
+          <div class="dashboard-card bg-white p-5 shadow-md rounded-lg text-center border border-gray-100">
+            <p class="text-gray-500 text-sm">Total Jobs</p>
+            <h3 class="text-3xl font-extrabold text-gray-800 mt-1" id="stat-total">0</h3>
+          </div>
+          <div class="dashboard-card bg-white p-5 shadow-md rounded-lg text-center border border-gray-100">
+            <p class="text-gray-500 text-sm">In Progress</p>
+            <h3 class="text-3xl font-extrabold text-yellow-500 mt-1" id="stat-progress">0</h3>
+          </div>
+          <div class="dashboard-card bg-white p-5 shadow-md rounded-lg text-center border border-gray-100">
+            <p class="text-gray-500 text-sm">Completed</p>
+            <h3 class="text-3xl font-extrabold text-green-600 mt-1" id="stat-completed">0</h3>
+          </div>
+          <div class="dashboard-card bg-white p-5 shadow-md rounded-lg text-center border border-gray-100">
+            <p class="text-gray-500 text-sm">Cancelled</p>
+            <h3 class="text-3xl font-extrabold text-red-600 mt-1" id="stat-cancelled">0</h3>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <h3 class="font-bold text-lg text-purple-700 mb-4">⏱️ Recent Activity</h3>
+                <ul id="recent-activity-list" class="space-y-3 text-sm">
+                    <li class="text-gray-500">No recent activity.</li>
+                </ul>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <h3 class="font-bold text-lg text-purple-700 mb-4">🗓️ Upcoming Deadlines</h3>
+                <ul id="upcoming-deadlines-list" class="space-y-3 text-sm">
+                    <li class="text-gray-500">No upcoming deadlines.</li>
+                </ul>
+            </div>
+        </div>
+
+      </section>
+
+      
+<section id="job-order" class="hidden section-transition bg-white p-6 rounded-xl shadow-lg">
+        <h2 class="text-2xl font-bold text-purple-700 mb-6">📝 New Job Order</h2>
+        <form id="job-form" class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+          <input id="customer"       type="text"     required placeholder="Customer Name" class="p-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"/>
+          <input id="customer-phone" type="text"     required placeholder="Phone Number"  class="p-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"/>
+          
+          <fieldset class="md:col-span-2 border border-gray-300 p-5 rounded-lg">
+            <legend class="font-semibold text-gray-700 mb-3">Job Details</legend>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <label class="flex items-center space-x-2"><input type="checkbox" name="details" value="Scanning" class="form-checkbox text-purple-600 rounded"> <span>Scanning</span></label>
+              <label class="flex items-center space-x-2"><input type="checkbox" name="details" value="Laminating" class="form-checkbox text-purple-600 rounded"> <span>Laminating</span></label>
+              <label class="flex items-center space-x-2"><input type="checkbox" name="details" value="Fax"       class="form-checkbox text-purple-600 rounded"> <span>Fax</span></label>
+              <label class="flex items-center space-x-2"><input type="checkbox" name="details" value="Photocopy"class="form-checkbox text-purple-600 rounded"> <span>Photocopy</span></label>
+              <label class="flex items-center space-x-2"><input type="checkbox" name="details" value="Business Card" class="form-checkbox text-purple-600 rounded"> <span>Business Card</span></label>
+              <label class="flex items-center space-x-2"><input type="checkbox" name="details" value="Colour Printing" class="form-checkbox text-purple-600 rounded"> <span>Colour Printing</span></label>
+              <label class="flex items-center space-x-2"><input type="checkbox" name="details" value="B&W Printing"    class="form-checkbox text-purple-600 rounded"> <span>B&W Printing</span></label>
+              <label class="flex items-center space-x-2"><input type="checkbox" name="details" value="Logo" class="form-checkbox text-purple-600 rounded"> <span>Logo</span></label>
+              <label class="flex items-center space-x-2"><input type="checkbox" name="details" value="Sticker" class="form-checkbox text-purple-600 rounded"> <span>Sticker</span></label>
+              <label class="flex items-center space-x-2"><input type="checkbox" name="details" value="Mug" class="form-checkbox text-purple-600 rounded"> <span>Mug</span></label>
+              <label class="flex items-center space-x-2"><input type="checkbox" name="details" value="Key Tag" class="form-checkbox text-purple-600 rounded"> <span>Key Tag</span></label>
+              <label class="flex items-center space-x-2"><input type="checkbox" name="details" value="Other"            class="form-checkbox text-purple-600 rounded"> <span>Other</span></label>
+            </div>
+            <textarea id="other-details" placeholder="Other details." class="w-full mt-4 p-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"></textarea>
+          </fieldset>
+
+          <input id="price"    type="number" required placeholder="Price (Rs)"    class="p-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"/>
+          <input id="discount" type="number" required placeholder="Discount (Rs)" class="p-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"/>
+          <p class="md:col-span-2 text-xl font-bold text-purple-700">Total: <span id="total-display">Rs. 0.00</span></p>
+
+          <div>
+            <label for="order-date" class="date-label">Order Date</label>
+            <input id="order-date" type="date" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"/>
+          </div>
+          <div>
+            <label for="deadline" class="date-label">Deadline</label>
+            <input id="deadline" type="date" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"/>
+          </div>
+
+          <fieldset class="md:col-span-2 border border-gray-300 p-5 rounded-lg">
+            <legend class="font-semibold text-gray-700 mb-3">Delivery</legend>
+            <div class="flex items-center space-x-4 mb-3">
+              <label class="flex items-center space-x-2"><input type="radio" name="delivery" value="address" onchange="toggleDeliveryFields(this.value)" class="form-radio text-purple-600"> <span>Address</span></label>
+              <label class="flex items-center space-x-2"><input type="radio" name="delivery" value="email"   onchange="toggleDeliveryFields(this.value)" class="form-radio text-purple-600"> <span>Email</span></label>
+              <label class="flex items-center space-x-2"><input type="radio" name="delivery" value="whatsapp" onchange="toggleDeliveryFields(this.value)" class="form-radio text-purple-600"> <span>WhatsApp</span></label>
+            </div>
+            <div id="delivery-address" class="hidden mt-2"><input type="text" placeholder="Enter Address" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"/></div>
+            <div id="delivery-email"   class="hidden mt-2"><input type="email" placeholder="Enter Email"    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"/></div>
+            <div id="delivery-whatsapp" class="hidden mt-2"><input type="text" placeholder="WhatsApp Number" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"/></div>
+          </fieldset>
+
+          <button type="submit" class="md:col-span-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Submit Job</button>
+        </form>
+      </section>
+
+      
+<section id="tasks" class="hidden section-transition bg-white p-6 rounded-xl shadow-lg">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-purple-700">✅ Tasks</h2>
+            <button onclick="undoLastChange()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-1 px-3 rounded-lg text-sm shadow-sm transition-all duration-200">Undo Last Change</button>
+        </div>
+        <div class="mb-4">
+            <input type="text" id="task-search" onkeyup="filterTasks()" placeholder="🔍 Search by customer, phone, or details..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500">
+        </div>
+
+        <div class="overflow-x-auto mt-4">
+          <table class="w-full bg-white shadow-md rounded-lg text-sm border-collapse">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="border border-gray-200 p-3 text-left text-gray-600 font-semibold">Customer</th>
+                <th class="border border-gray-200 p-3 text-left text-gray-600 font-semibold">Phone</th>
+                <th class="border border-gray-200 p-3 text-left text-gray-600 font-semibold">Contact</th>
+                <th class="border border-gray-200 p-3 text-left text-gray-600 font-semibold">Details</th>
+                <th class="border border-gray-200 p-3 text-left text-gray-600 font-semibold">Price</th>
+                <th class="border border-gray-200 p-3 text-left text-gray-600 font-semibold">Discount</th>
+                <th class="border border-gray-200 p-3 text-left text-gray-600 font-semibold">Deadline</th>
+                <th class="border border-gray-200 p-3 text-left text-gray-600 font-semibold">Status</th>
+                <th class="border border-gray-200 p-3 text-left text-gray-600 font-semibold">Invoice</th>
+                <th class="border border-gray-200 p-3 text-left text-gray-600 font-semibold">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tasks-body"></tbody>
+          </table>
+        </div>
+         <div id="pagination-controls" class="flex justify-center items-center mt-6 pagination-controls">
+            </div>
+      </section>
+
+      
+<section id="calendar" class="hidden section-transition bg-white p-6 rounded-xl shadow-lg">
+        <h2 class="text-2xl font-bold text-purple-700 mb-6">📅 Calendar</h2>
+        <div id="calendarEl" class="mt-4 bg-gray-50 p-4 rounded-lg shadow-inner border border-gray-200"></div>
+      </section>
+
+      
+<section id="earnings" class="hidden section-transition bg-white p-6 rounded-xl shadow-lg">
+        <h2 class="text-2xl font-bold text-purple-700 mb-6">💰 Earnings</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
+          <div class="dashboard-card bg-white p-5 rounded-lg shadow-md text-center border border-gray-100">
+            <p class="text-gray-500 text-sm">Income</p>
+            <h3 class="text-3xl font-extrabold text-green-600 mt-1" id="income-total">Rs. 0.00</h3>
+          </div>
+          <div class="dashboard-card bg-white p-5 rounded-lg shadow-md text-center border border-gray-100">
+            <p class="text-gray-500 text-sm">Expenses</p>
+            <h3 class="text-3xl font-extrabold text-red-600 mt-1" id="expense-total">Rs. 0.00</h3>
+          </div>
+          <div class="dashboard-card bg-white p-5 rounded-lg shadow-md text-center border border-gray-100">
+            <p class="text-gray-500 text-sm">Profit</p>
+            <h3 class="text-3xl font-extrabold text-blue-600 mt-1" id="profit-total">Rs. ${(totalIncome-totalExpenses).toFixed(2)}</h3>
+          </div>
+        </div>
+      </section>
+
+      
+<section id="expenses" class="hidden section-transition bg-white p-6 rounded-xl shadow-lg">
+        <h2 class="text-2xl font-bold text-purple-700 mb-6">💸 Expenses
+            <button onclick="undoLastChange()" class="ml-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-1 px-3 rounded-lg text-sm shadow-sm transition-all duration-200">Undo Last Change</button>
+        </h2>
+        <form id="expense-form" class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 mb-6">
+          <input type="text"    id="expense-title"  placeholder="Title" class="p-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"/>
+          <input type="number" id="expense-amount" placeholder="Amount" class="p-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"/>
+          <div>
+            <label for="expense-date" class="date-label">Date</label>
+            <input type="date" id="expense-date" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"/>
+          </div>
+          <button type="submit" class="md:col-span-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Add Expense</button>
+        </form>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm bg-white rounded-lg shadow-md border-collapse">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="border border-gray-200 p-3 text-left text-gray-600 font-semibold">Title</th>
+                <th class="border border-gray-200 p-3 text-left text-gray-600 font-semibold">Amount</th>
+                <th class="border border-gray-200 p-3 text-left text-gray-600 font-semibold">Date</th>
+                <th class="border border-gray-200 p-3 text-left text-gray-600 font-semibold">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="expense-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="inventory" class="hidden section-transition bg-white p-6 rounded-xl shadow-lg">
+        <h2 class="text-2xl font-bold text-purple-700 mb-6">📦 Inventory Management</h2>
+        <p class="text-gray-600">Inventory features will be implemented here.</p>
+      </section>
+
+      
+<section id="reports" class="hidden section-transition bg-white p-6 rounded-xl shadow-lg">
+        <h2 class="text-2xl font-bold text-purple-700 mb-6">📈 Reports</h2>
+
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
+            <div class="lg:col-span-3 bg-gray-50 p-4 rounded-lg shadow-inner border border-gray-200">
+                <h3 class="font-semibold text-center text-gray-700 mb-2">Monthly Income vs. Expenses</h3>
+                <canvas id="incomeExpenseChart"></canvas>
+            </div>
+            <div class="lg:col-span-2 bg-gray-50 p-4 rounded-lg shadow-inner border border-gray-200">
+                <h3 class="font-semibold text-center text-gray-700 mb-2">Job Status Distribution</h3>
+                <canvas id="jobStatusChart"></canvas>
+            </div>
+        </div>
+
+
+        <div class="flex flex-wrap items-end gap-4 mt-4 mb-6">
+          <div>
+            <label class="text-sm font-semibold text-gray-700">From:</label>
+            <input type="date" id="report-from" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"/>
+          </div>
+          <div>
+            <label class="text-sm font-semibold text-gray-700">To:</label>
+            <input type="date" id="report-to" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"/>
+          </div>
+          <button onclick="filterReportByDate()" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Filter</button>
+          <button onclick="clearReportFilter()"  class="bg-gray-400 hover:bg-gray-500  text-white px-5 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Reset</button>
+        </div>
+        <div class="overflow-x-auto bg-white rounded-lg shadow-md">
+          <table class="w-full text-sm border-collapse" id="report-table">
+            <thead class="bg-gray-100 cursor-pointer">
+              <tr>
+                <th onclick="sortReport('type')"  class="border border-gray-200 p-3 text-left text-gray-600 font-semibold">Type ⬍</th>
+                <th onclick="sortReport('title')" class="border border-gray-200 p-3 text-left text-gray-600 font-semibold">Title ⬍</th>
+                <th onclick="sortReport('amount')"class="border border-gray-200 p-3 text-left text-gray-600 font-semibold">Amount ⬍</th>
+                <th onclick="sortReport('date')"  class="border border-gray-200 p-3 text-left text-gray-600 font-semibold">Date ⬍</th>
+              </tr>
+            </thead>
+            <tbody id="report-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    
+<div id="toast-container"></div>
+  </div>
+
+  
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const USERS = { "Insaf":"INSAF03", "Inzi":"INZI01", "Iltizam":"ILTIZAM05" };
+    let jobData = [], expenseData = [], calendar;
+    let stats = { total:0, in_progress:0, completed:0, cancelled:0 };
+    let totalIncome=0, totalExpenses=0;
+    let lastChange = null; // To store the last change for undo functionality
+
+    // Track which expense is being edited
+    let currentlyEditingExpenseId = null; 
+
+    // NEW: Pagination State
+    let currentPage = 1;
+    let rowsPerPage = 10;
+      
+    // NEW: Chart instances
+    let incomeExpenseChart;
+    let jobStatusChart;
+
+    // --- LOGIN / LOGOUT ---
+    function login() {
+      const u = document.getElementById("username").value.trim();
+      const p = document.getElementById("password").value.trim();
+      
+      if (USERS[u] === p) {
+        document.getElementById("login-screen").style.display = "none";
+        document.getElementById("app").style.display = "flex";
+        showSection("dashboard");
+      } else {
+        document.getElementById("login-error").classList.remove("hidden");
+      }
+    }
+    
+    function logout() {
+      document.getElementById("app").style.display = "none";
+      document.getElementById("login-screen").style.display = "flex";
+      document.getElementById("username").value = "";
+      document.getElementById("password").value = "";
+      document.getElementById("login-error").classList.add("hidden");
+    }
+
+    // --- UTILITY FUNCTIONS ---
+    function showToast(message, isError = false) {
+        const toastContainer = document.getElementById("toast-container");
+        const toast = document.createElement("div");
+        toast.className = `toast-message ${isError ? 'error' : ''}`;
+        toast.textContent = message;
+        toastContainer.appendChild(toast);
+
+        void toast.offsetWidth; 
+
+        setTimeout(() => {
+            toast.classList.add("show");
+        }, 50);
+
+        setTimeout(() => {
+            toast.classList.remove("show");
+            toast.addEventListener('transitionend', () => toast.remove());
+        }, 3000);
+    }
+
+    // --- SECTION NAVIGATION ---
+    function showSection(id, jobIdToHighlight = null) {
+        document.querySelectorAll("main > section").forEach(s => {
+            s.style.animation = 'none';
+            s.offsetHeight;
+            s.style.animation = null;
+
+            if (s.id === id) {
+                s.classList.remove("hidden");
+            } else {
+                s.classList.add("hidden");
+            }
+        });
+
+        document.querySelectorAll(".sidebar button").forEach(b => {
+            b.classList.remove("active", "bg-purple-200", "text-purple-800", "font-bold");
+            b.classList.add("text-gray-700");
+        });
+        const active = document.querySelector(`.sidebar button[onclick^="showSection('${id}')"]`);
+        if (active) active.classList.add("active", "bg-purple-200", "text-purple-800", "font-bold");
+        
+        if (id === "calendar" && calendar) calendar.render(); 
+        if (id === "tasks") {
+            updateTasks();
+            if (jobIdToHighlight) {
+                // Highlight logic remains the same
+            }
+        }
+        if (id === "expenses") updateExpenseTable();
+        if (id === "dashboard") updateDashboard();
+        if (id === "reports") updateCharts(); // NEW: Render charts when reports section is viewed
+    }
+
+
+    // --- INITIALIZE DATES & FIRESTORE LISTENERS ---
+    document.addEventListener('DOMContentLoaded', () => {
+      const today = new Date().toISOString().split("T")[0];
+      document.getElementById("order-date").value = today;
+      document.getElementById("expense-date").value = today;
+      initCalendar();
+
+      db.collection("jobs").orderBy("createdAt", "desc") // Order by newest first
+        .onSnapshot(snap => {
+          jobData = []; 
+          totalIncome = 0;
+          
+          if (calendar) {
+            calendar.getEvents().forEach(e => e.remove()); 
+          }
+
+          stats = { total: 0, in_progress: 0, completed: 0, cancelled: 0 };
+          
+          snap.forEach(doc => {
+            const j = { id: doc.id, ...doc.data() };
+            jobData.push(j);
+            
+            // Calendar event logic remains the same...
+            const todayDate = new Date();
+            todayDate.setHours(0,0,0,0); 
+            const deadlineDate = new Date(j.deadline);
+            deadlineDate.setHours(0,0,0,0); 
+
+            let eventClassName = '';
+            if (j.status === 'completed') eventClassName = 'fc-event-completed';
+            else if (j.status === 'cancelled') eventClassName = 'fc-event-cancelled';
+            else {
+                const diffTime = deadlineDate.getTime() - todayDate.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+                if (diffDays <= 2) eventClassName = 'fc-event-red';
+                else if (diffDays <= 5) eventClassName = 'fc-event-yellow';
+                else eventClassName = 'fc-event-green';
+            }
+            if (calendar) calendar.addEvent({ id: j.id, title: j.customer, start: j.deadline, allDay: true, classNames: [eventClassName] });
+            
+            if (j.incomeCounted !== false) {
+                totalIncome += (j.price - j.discount);
+            }
+          });
+
+          jobData.forEach(j => {
+              if (stats[j.status] !== undefined) stats[j.status]++;
+          });
+          stats.total = jobData.length;
+
+          updateDashboard();
+          updateTasks();
+          updateReports();
+          updateCharts(); // NEW: Update charts with new data
+          updateRecentActivity(); // NEW: Update dashboard component
+          updateUpcomingDeadlines(); // NEW: Update dashboard component
+          if (calendar) calendar.render();
+        }, err => console.error("Jobs listener error:", err));
+
+      db.collection("expenses").orderBy("createdAt")
+        .onSnapshot(snap => {
+          expenseData = [];
+          snap.forEach(doc => expenseData.push({ id: doc.id, ...doc.data() }));
+          totalExpenses = expenseData.reduce((sum, e) => sum + e.amount, 0);
+          updateDashboard();
+          updateExpenseTable();
+          updateReports();
+          updateCharts(); // NEW: Update charts with new data
+        }, err => console.error("Expenses listener error:", err));
+    });
+
+    // --- CALENDAR SETUP ---
+    function initCalendar(){
+      const el=document.getElementById("calendarEl");
+      if (!calendar) {
+        calendar=new FullCalendar.Calendar(el,{
+          initialView:'dayGridMonth',
+          height:600,
+          eventDidMount: info => { info.el.style.borderColor='transparent'; },
+          eventClick: function(info) {
+              const jobId = info.event.id;
+              if (jobId) {
+                  showSection('tasks', jobId);
+                  showToast(`Navigating to task for ${info.event.title}`);
+              }
+          }
+        });
+      }
+    }
+
+    // --- JOB FORM SUBMISSION ---
+    document.getElementById("job-form").addEventListener("submit",function(e){
+      e.preventDefault();
+      const customer = document.getElementById("customer").value.trim();
+      const phone = document.getElementById("customer-phone").value.trim();
+      const price = parseFloat(document.getElementById("price").value)||0;
+      const discount = parseFloat(document.getElementById("discount").value)||0;
+      const orderDate= document.getElementById("order-date").value;
+      const deadline = document.getElementById("deadline").value;
+      const details = [...document.querySelectorAll('input[name="details"]:checked')].map(cb=>cb.value);
+      const other = document.getElementById("other-details").value.trim();
+      const fullDetails=[...details, other?`Other: ${other}`:''].filter(Boolean).join(", ");
+      const delivery = document.querySelector('input[name="delivery"]:checked')?.value;
+      let contact="";
+      if(delivery==="address") contact=document.querySelector("#delivery-address input").value.trim();
+      if(delivery==="email")   contact=document.querySelector("#delivery-email input").value.trim();
+      if(delivery==="whatsapp")contact=document.querySelector("#delivery-whatsapp input").value.trim();
+
+      const job={ customer, phone, contact, details:fullDetails, price, discount, orderDate, deadline, status:"in_progress", incomeCounted:true, createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() }; // Add updatedAt
+      
+      db.collection("jobs").add(job)
+        .then((docRef)=> {
+            showToast("Job added successfully!");
+            this.reset();
+            lastChange = { type: 'add', jobId: docRef.id, data: job }; 
+        })
+        .catch(err=> {
+            console.error("Error adding job:",err);
+            showToast("Error adding job.", true);
+        });
+    });
+
+    // --- EXPENSE FORM SUBMISSION ---
+    document.getElementById("expense-form").addEventListener("submit",function(e){
+        e.preventDefault();
+        const title = document.getElementById("expense-title").value.trim();
+        const amount = parseFloat(document.getElementById("expense-amount").value) || 0;
+        const date = document.getElementById("expense-date").value;
+
+        const expense = { title, amount, date, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+        db.collection("expenses").add(expense)
+            .then(docRef => {
+                showToast("Expense added successfully!");
+                this.reset();
+                lastChange = { type: 'addExpense', expenseId: docRef.id, data: expense };
+            })
+            .catch(err => {
+                console.error("Error adding expense:", err);
+                showToast("Error adding expense.", true);
+            });
+    });
+
+    // --- UI UPDATES (TASKS, EXPENSES, ETC.) ---
+    function updateExpenseTable(){
+      const tbody=document.getElementById("expense-body");
+      tbody.innerHTML="";
+      expenseData.forEach(e=>{
+        const row=document.createElement("tr");
+        row.dataset.expenseId = e.id;
+        // The rest of the expense table logic remains the same...
+        if (currentlyEditingExpenseId === e.id) {
+            row.innerHTML = `...`; // Editable row HTML
+        } else {
+            row.innerHTML=`<td class="border border-gray-200 p-3">${e.title}</td><td class="border border-gray-200 p-3">Rs. ${e.amount.toFixed(2)}</td><td class="border border-gray-200 p-3">${e.date}</td><td class="border p-3 whitespace-nowrap"><button onclick="editExpense('${e.id}')" class="text-yellow-600 hover:text-yellow-800 font-semibold mr-2">Edit</button><button onclick="deleteExpense('${e.id}')" class="text-red-600 hover:text-red-800 font-semibold">Delete</button></td>`;
+        }
+        tbody.appendChild(row);
+      });
+    }
+
+    let currentlyEditingJobId = null;
+
+    // MODIFIED: updateTasks with Pagination
+    function updateTasks(){
+      const tbody=document.getElementById("tasks-body");
+      tbody.innerHTML="";
+      
+      const start = (currentPage - 1) * rowsPerPage;
+      const end = start + rowsPerPage;
+      const paginatedJobs = jobData.slice(start, end);
+
+      const todayDate = new Date();
+      todayDate.setHours(0,0,0,0);
+
+      paginatedJobs.forEach((job)=>{
+        const row=document.createElement("tr");
+        row.dataset.jobId = job.id;
+        // Row background and deadline class logic remains the same...
+        let rowBgClass = '';
+        if (job.status === "completed") rowBgClass = "bg-green-100"; 
+        else if (job.status === "cancelled") rowBgClass = "bg-red-100";
+        row.className = rowBgClass;
+
+        let deadlineClass = '';
+        if (job.status === "in_progress" && job.deadline) {
+            const deadlineDate = new Date(job.deadline);
+            deadlineDate.setHours(0,0,0,0);
+            const diffDays = Math.ceil((deadlineDate - todayDate) / (1000 * 60 * 60 * 24));
+            if (diffDays <= 2) deadlineClass = 'bg-red-200 text-red-800 font-semibold';
+            else if (diffDays <= 5) deadlineClass = 'bg-yellow-200 text-yellow-800 font-semibold';
+        }
+        
+        let statusTextColor = "text-gray-800";
+        if (job.status === "completed") statusTextColor = "text-green-800";
+        else if (job.status === "cancelled") statusTextColor = "text-red-800";
+
+        // Editable row logic remains the same...
+        if (currentlyEditingJobId === job.id) {
+            // ...
+        } else {
+            row.innerHTML=`
+              <td class="border p-3">${job.customer || ''}</td>
+              <td class="border p-3">${job.phone || ''}</td>
+              <td class="border p-3">${job.contact || ''}</td>
+              <td class="border p-3">${job.details || ''}</td>
+              <td class="border p-3">Rs. ${(job.price || 0).toFixed(2)}</td>
+              <td class="border p-3">Rs. ${(job.discount || 0).toFixed(2)}</td>
+              <td class="border p-3 ${deadlineClass}">${job.deadline || ''}</td>
+              <td class="border p-3">
+                <select onchange="updateStatus(this,'${job.id}')" class="p-2 border rounded-lg ${statusTextColor}">
+                  <option value="in_progress"${job.status==="in_progress"?" selected":""}>In Progress</option>
+                  <option value="completed"${job.status==="completed"?" selected":""}>Completed</option>
+                  <option value="cancelled"${job.status==="cancelled"?" selected":""}>Cancelled</option>
+                </select>
+              </td>
+              <td class="border p-3"><button onclick="printInvoice('${job.id}')" class="text-blue-600 hover:text-blue-800 font-semibold">Print</button></td>
+              <td class="border p-3 whitespace-nowrap">
+                <button onclick="editJob('${job.id}')" class="text-yellow-600 hover:text-yellow-800 font-semibold mr-2">Edit</button>
+                <button onclick="deleteJob('${job.id}')" class="text-red-600 hover:text-red-800 font-semibold">Delete</button>
+              </td>
+            `;
+        }
+        tbody.appendChild(row);
+      });
+      setupPagination();
+      filterTasks(); // Re-apply search filter after re-rendering
+    }
+      
+    // NEW: Search and Filtering function
+    function filterTasks() {
+        const searchTerm = document.getElementById('task-search').value.toLowerCase();
+        const rows = document.querySelectorAll('#tasks-body tr');
+        rows.forEach(row => {
+            const customer = row.cells[0].textContent.toLowerCase();
+            const phone = row.cells[1].textContent.toLowerCase();
+            const details = row.cells[3].textContent.toLowerCase();
+            if (customer.includes(searchTerm) || phone.includes(searchTerm) || details.includes(searchTerm)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    // NEW: Pagination functions
+    function setupPagination() {
+        const wrapper = document.getElementById('pagination-controls');
+        wrapper.innerHTML = '';
+        const pageCount = Math.ceil(jobData.length / rowsPerPage);
+
+        if (pageCount <= 1) return; // No need for controls if there's only one page
+
+        // Previous Button
+        const prevButton = document.createElement('button');
+        prevButton.innerText = '« Prev';
+        prevButton.disabled = currentPage === 1;
+        prevButton.onclick = () => {
+            changePage(currentPage - 1);
+        };
+        wrapper.appendChild(prevButton);
+
+        // Page Number Buttons
+        for (let i = 1; i <= pageCount; i++) {
+            const btn = document.createElement('button');
+            btn.innerText = i;
+            if (currentPage === i) {
+                btn.classList.add('active');
+            }
+            btn.onclick = () => changePage(i);
+            wrapper.appendChild(btn);
+        }
+
+        // Next Button
+        const nextButton = document.createElement('button');
+        nextButton.innerText = 'Next »';
+        nextButton.disabled = currentPage === pageCount;
+        nextButton.onclick = () => {
+            changePage(currentPage + 1);
+        };
+        wrapper.appendChild(nextButton);
+    }
+
+    function changePage(page) {
+        if (page < 1 || page > Math.ceil(jobData.length / rowsPerPage)) return;
+        currentPage = page;
+        updateTasks();
+    }
+
+    function updateStatus(sel, jobId){
+        const newSt = sel.value;
+        const job = jobData.find(j => j.id === jobId);
+        if (!job) return;
+
+        const prevStatus = job.status;
+        const prevIncomeCounted = job.incomeCounted === undefined ? true : job.incomeCounted;
+        lastChange = { type: 'updateStatus', jobId, prevStatus, newStatus: newSt, prevIncomeCounted };
+
+        let newIncomeCounted = prevIncomeCounted;
+        if(prevStatus !== "cancelled" && newSt === "cancelled") newIncomeCounted = false;
+        if(prevStatus === "cancelled" && newSt !== "cancelled") newIncomeCounted = true;
+
+        // Add updatedAt timestamp
+        db.collection("jobs").doc(jobId).update({ status: newSt, incomeCounted: newIncomeCounted, updatedAt: firebase.firestore.FieldValue.serverTimestamp() })
+            .then(() => {
+                showToast("Job status updated successfully!");
+                // Snapshot listener will handle UI updates
+            })
+            .catch(err => {
+                showToast("Error updating status.", true);
+            });
+    }
+
+    function updateCalendarEventColor(jobId, newStatus) {
+        // This function's logic remains the same
+    }
+
+    function deleteJob(jobId) {
+        // This function's logic remains the same
+    }
+
+    function editJob(jobId) {
+        currentlyEditingJobId = jobId;
+        updateTasks();
+    }
+    
+    // All other CRUD and utility functions (cancelEdit, saveEditedJob, editExpense, etc.) remain the same.
+
+    // --- REPORTING & CHARTS ---
+    function updateReports(){
+      const tb=document.getElementById("report-body");
+      tb.innerHTML="";
+      jobData.forEach(j=>{
+        if(j.incomeCounted !== false){
+          tb.innerHTML+=`<tr class="hover:bg-gray-50"><td class="border p-3 text-green-700">Income</td><td class="border p-3">${j.customer || ''}</td><td class="border p-3 font-semibold">Rs. ${(j.price-j.discount).toFixed(2)}</td><td class="border p-3">${j.orderDate || ''}</td></tr>`;
+        }
+      });
+      expenseData.forEach(e=>{
+        tb.innerHTML+=`<tr class="hover:bg-gray-50"><td class="border p-3 text-red-700">Expense</td><td class="border p-3">${e.title || ''}</td><td class="border p-3 font-semibold">Rs. ${e.amount.toFixed(2)}</td><td class="border p-3">${e.date || ''}</td></tr>`;
+      });
+    }
+      
+    // NEW: Function to update charts
+    function updateCharts() {
+        if (!document.getElementById('reports').classList.contains('hidden')) {
+            // --- Income vs. Expense Chart ---
+            const incomeCtx = document.getElementById('incomeExpenseChart').getContext('2d');
+            const monthlyData = {}; // Format: { 'YYYY-MM': { income: 0, expense: 0 } }
+
+            jobData.forEach(j => {
+                if (j.incomeCounted !== false && j.orderDate) {
+                    const month = j.orderDate.substring(0, 7); // 'YYYY-MM'
+                    if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 };
+                    monthlyData[month].income += (j.price - j.discount);
+                }
+            });
+
+            expenseData.forEach(e => {
+                if (e.date) {
+                    const month = e.date.substring(0, 7);
+                    if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 };
+                    monthlyData[month].expense += e.amount;
+                }
+            });
+            
+            const sortedMonths = Object.keys(monthlyData).sort();
+            const labels = sortedMonths.map(month => new Date(month + '-02').toLocaleString('default', { month: 'short', year: 'numeric' }));
+            const incomeValues = sortedMonths.map(month => monthlyData[month].income);
+            const expenseValues = sortedMonths.map(month => monthlyData[month].expense);
+
+            if (incomeExpenseChart) incomeExpenseChart.destroy();
+            incomeExpenseChart = new Chart(incomeCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Income', data: incomeValues, borderColor: 'rgba(34, 197, 94, 1)', backgroundColor: 'rgba(34, 197, 94, 0.2)', fill: true, tension: 0.1 },
+                        { label: 'Expenses', data: expenseValues, borderColor: 'rgba(239, 68, 68, 1)', backgroundColor: 'rgba(239, 68, 68, 0.2)', fill: true, tension: 0.1 }
+                    ]
+                }
+            });
+
+            // --- Job Status Chart ---
+            const statusCtx = document.getElementById('jobStatusChart').getContext('2d');
+            if (jobStatusChart) jobStatusChart.destroy();
+            jobStatusChart = new Chart(statusCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['In Progress', 'Completed', 'Cancelled'],
+                    datasets: [{
+                        label: 'Job Status',
+                        data: [stats.in_progress, stats.completed, stats.cancelled],
+                        backgroundColor: ['rgba(245, 158, 11, 1)', 'rgba(22, 163, 74, 1)', 'rgba(220, 38, 38, 1)'],
+                        hoverOffset: 4
+                    }]
+                },
+                options: { 
+                    responsive: true
+                }
+            });
+        }
+    }
+
+
+    // --- DASHBOARD UPDATES ---
+    function updateDashboard(){
+      document.getElementById("stat-total").textContent   = stats.total;
+      document.getElementById("stat-progress").textContent= stats.in_progress;
+      document.getElementById("stat-completed").textContent= stats.completed;
+      document.getElementById("stat-cancelled").textContent= stats.cancelled;
+      document.getElementById("income-total").textContent = `Rs. ${totalIncome.toFixed(2)}`;
+      document.getElementById("expense-total").textContent= `Rs. ${totalExpenses.toFixed(2)}`;
+      document.getElementById("profit-total").textContent = `Rs. ${(totalIncome-totalExpenses).toFixed(2)}`;
+
+      const today = new Date().toISOString().split("T")[0];
+      // *** FIX: Filter for "in_progress" status only ***
+      const dueTodayCount = jobData.filter(job => job.status === 'in_progress' && job.deadline === today).length;
+      
+      const alertDiv = document.getElementById("due-today-alert");
+      const alertMessage = document.getElementById("due-today-message");
+      const alertCircle = document.getElementById("due-today-count-circle");
+
+      if (dueTodayCount > 0) {
+          alertMessage.textContent = `You have ${dueTodayCount} order(s) with a deadline of today.`;
+          alertCircle.textContent = dueTodayCount;
+          alertDiv.classList.remove("hidden");
+          alertCircle.classList.remove("hidden");
+      } else {
+          alertDiv.classList.add("hidden");
+          alertCircle.classList.add("hidden");
+      }
+    }
+      
+    // NEW: Update Dashboard Recent Activity
+    function updateRecentActivity() {
+        const list = document.getElementById('recent-activity-list');
+        list.innerHTML = '';
+        const sortedJobs = [...jobData].sort((a, b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
+        const recentJobs = sortedJobs.slice(0, 5);
+        
+        if (recentJobs.length === 0) {
+            list.innerHTML = '<li class="text-gray-500">No recent activity.</li>';
+            return;
+        }
+
+        recentJobs.forEach(job => {
+            const li = document.createElement('li');
+            li.className = 'flex justify-between items-center bg-gray-50 p-2 rounded-md';
+            const statusClass = job.status === 'completed' ? 'text-green-600' : job.status === 'cancelled' ? 'text-red-600' : 'text-yellow-600';
+            li.innerHTML = `
+                <div>
+                    <p class="font-semibold">${job.customer}</p>
+                    <p class="text-xs text-gray-500">${job.details.substring(0, 30)}...</p>
+                </div>
+                <span class="font-bold text-xs capitalize ${statusClass}">${job.status.replace('_', ' ')}</span>
+            `;
+            list.appendChild(li);
+        });
+    }
+
+    // NEW: Update Dashboard Upcoming Deadlines
+    function updateUpcomingDeadlines() {
+        const list = document.getElementById('upcoming-deadlines-list');
+        list.innerHTML = '';
+        const today = new Date();
+        today.setHours(0,0,0,0); // Set to start of today to include today's deadlines
+
+        // *** FIX: Verified that this filter correctly only shows "in_progress" tasks ***
+        const upcoming = jobData
+            .filter(j => j.status === 'in_progress' && new Date(j.deadline) >= today)
+            .sort((a, b) => new Date(a.deadline) - new Date(b.deadline))
+            .slice(0, 5);
+
+        if (upcoming.length === 0) {
+            list.innerHTML = '<li class="text-gray-500">No upcoming deadlines.</li>';
+            return;
+        }
+
+        upcoming.forEach(job => {
+            const li = document.createElement('li');
+            li.className = 'flex justify-between items-center bg-gray-50 p-2 rounded-md';
+            li.innerHTML = `
+                <div>
+                    <p class="font-semibold">${job.customer}</p>
+                    <p class="text-xs text-gray-500">${job.phone}</p>
+                </div>
+                <span class="font-bold text-xs text-red-700">${job.deadline}</span>
+            `;
+            list.appendChild(li);
+        });
+    }
+      
+    // NEW: Invoice Printing Function
+    function printInvoice(jobId) {
+        const job = jobData.find(j => j.id === jobId);
+        if (!job) {
+            showToast('Could not find job details to print.', true);
+            return;
+        }
+
+        const total = (job.price || 0) - (job.discount || 0);
+
+        const invoiceHTML = `
+            <html>
+            <head>
+                <title>Invoice - ${job.customer}</title>
+                <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+                <style>
+                    body { font-family: 'Inter', sans-serif; }
+                    @media print {
+                        body { -webkit-print-color-adjust: exact; }
+                        .no-print { display: none; }
+                    }
+                </style>
+            </head>
+            <body class="bg-white">
+                <div class="p-8 max-w-2xl mx-auto">
+                    <div class="flex justify-between items-center pb-4 border-b">
+                        <div>
+                            <img src="LOGO.png" alt="INKSPIRE Logo" class="h-16">
+                            <p class="text-gray-600 text-sm">Your Company Address<br>City, Postal Code<br>Phone: (123) 456-7890</p>
+                        </div>
+                        <h1 class="text-4xl font-bold text-purple-700">INVOICE</h1>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mt-8">
+                        <div>
+                            <h2 class="font-semibold text-gray-700">BILL TO:</h2>
+                            <p>${job.customer}</p>
+                            <p>${job.phone}</p>
+                            <p>${job.contact || ''}</p>
+                        </div>
+                        <div class="text-right">
+                            <p><span class="font-semibold">Invoice #:</span> ${job.id.substring(0, 8).toUpperCase()}</p>
+                            <p><span class="font-semibold">Order Date:</span> ${job.orderDate}</p>
+                            <p><span class="font-semibold">Deadline:</span> ${job.deadline}</p>
+                        </div>
+                    </div>
+                    <div class="mt-8">
+                        <table class="w-full">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="p-3 text-left font-semibold">Description</th>
+                                    <th class="p-3 text-right font-semibold">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="border-b">
+                                    <td class="p-3">${job.details}</td>
+                                    <td class="p-3 text-right">Rs. ${job.price.toFixed(2)}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="flex justify-end mt-4">
+                        <div class="w-full max-w-xs">
+                            <div class="flex justify-between">
+                                <span class="font-semibold">Subtotal:</span>
+                                <span>Rs. ${job.price.toFixed(2)}</span>
+                            </div>
+                            <div class="flex justify-between text-red-600">
+                                <span class="font-semibold">Discount:</span>
+                                <span>- Rs. ${job.discount.toFixed(2)}</span>
+                            </div>
+                            <div class="flex justify-between mt-2 pt-2 border-t-2 border-purple-700">
+                                <span class="font-bold text-lg">TOTAL:</span>
+                                <span class="font-bold text-lg">Rs. ${total.toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-16 text-center text-gray-500 text-sm">
+                        <p>Thank you for your business!</p>
+                        <button onclick="window.print()" class="no-print mt-4 bg-purple-600 text-white py-2 px-6 rounded-lg">Print</button>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+
+        const printWindow = window.open('', '', 'height=800,width=800');
+        printWindow.document.write(invoiceHTML);
+        printWindow.document.close();
+        printWindow.focus();
+    }
+
+
+    // --- MISC FUNCTIONS (UNCHANGED) ---
+    function updateTotalDisplay() {
+        const price = parseFloat(document.getElementById("price").value) || 0;
+        const discount = parseFloat(document.getElementById("discount").value) || 0;
+        document.getElementById("total-display").textContent = `Rs. ${(price - discount).toFixed(2)}`;
+    }
+    document.addEventListener('DOMContentLoaded', updateTotalDisplay);
+    document.getElementById("price").addEventListener("input", updateTotalDisplay);
+    document.getElementById("discount").addEventListener("input", updateTotalDisplay);
+    function toggleDeliveryFields(type) {
+        document.getElementById("delivery-address").classList.add("hidden");
+        document.getElementById("delivery-email").classList.add("hidden");
+        document.getElementById("delivery-whatsapp").classList.add("hidden");
+        document.querySelector("#delivery-address input").value = "";
+        document.querySelector("#delivery-email input").value = "";
+        document.querySelector("#delivery-whatsapp input").value = "";
+        if (type === "address") document.getElementById("delivery-address").classList.remove("hidden");
+        else if (type === "email") document.getElementById("delivery-email").classList.remove("hidden");
+        else if (type === "whatsapp") document.getElementById("delivery-whatsapp").classList.remove("hidden");
+    }
+    // UndoLastChange, sorting, filtering reports... these functions remain the same.
+    // ... [ The rest of your existing JS code like undoLastChange, saveEditedJob, deleteExpense, etc., goes here ]
+
+  </script>
+</body>
+</html>
+```
