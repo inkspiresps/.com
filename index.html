@@ -697,6 +697,11 @@
   let incomeExpenseChart;
   let jobStatusChart;
 
+  function formatWithCommas(number) {
+    const num = parseFloat(number) || 0;
+    return num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+
   // --- STARTUP & LOGIN ---
   window.onload = () => {
       setTimeout(() => {
@@ -1040,7 +1045,7 @@
               </td>
           `;
       } else {
-          row.innerHTML=`<td class="border border-gray-200 p-3">${e.title}</td><td class="border border-gray-200 p-3">Rs. ${e.amount.toFixed(2)}</td><td class="border border-gray-200 p-3">${e.date}</td><td class="border p-3 whitespace-nowrap"><button onclick="editExpense('${e.id}')" class="text-yellow-600 hover:text-yellow-800 font-semibold mr-2">Edit</button><button onclick="deleteExpense('${e.id}')" class="text-red-600 hover:text-red-800 font-semibold">Delete</button></td>`;
+          row.innerHTML=`<td class="border border-gray-200 p-3">${e.title}</td><td class="border border-gray-200 p-3">Rs. ${formatWithCommas(e.amount)}</td><td class="border border-gray-200 p-3">${e.date}</td><td class="border p-3 whitespace-nowrap"><button onclick="editExpense('${e.id}')" class="text-yellow-600 hover:text-yellow-800 font-semibold mr-2">Edit</button><button onclick="deleteExpense('${e.id}')" class="text-red-600 hover:text-red-800 font-semibold">Delete</button></td>`;
       }
       tbody.appendChild(row);
     });
@@ -1105,8 +1110,8 @@
             <td class="border p-3">${job.phone || ''}</td>
             <td class="border p-3">${job.contact || ''}</td>
             <td class="border p-3">${job.details || ''}</td>
-            <td class="border p-3">Rs. ${(job.price || 0).toFixed(2)}</td>
-            <td class="border p-3">Rs. ${(job.discount || 0).toFixed(2)}</td>
+            <td class="border p-3">Rs. ${formatWithCommas(job.price)}</td>
+            <td class="border p-3">Rs. ${formatWithCommas(job.discount)}</td>
             <td class="border p-3 ${deadlineClass}">${job.deadline || ''}</td>
             <td class="border p-3">
               <select onchange="updateStatus(this,'${job.id}')" class="p-2 border rounded-lg ${statusTextColor}">
@@ -1423,11 +1428,11 @@
     tb.innerHTML="";
     jobData.forEach(j=>{
       if(j.incomeCounted !== false){
-        tb.innerHTML+=`<tr class="hover:bg-gray-50"><td class="border p-3 text-green-700">Income</td><td class="border p-3">${j.customer || ''}</td><td class="border p-3 font-semibold">Rs. ${(j.price-j.discount).toFixed(2)}</td><td class="border p-3">${j.orderDate || ''}</td></tr>`;
+        tb.innerHTML+=`<tr class="hover:bg-gray-50"><td class="border p-3 text-green-700">Income</td><td class="border p-3">${j.customer || ''}</td><td class="border p-3 font-semibold">Rs. ${formatWithCommas(j.price-j.discount)}</td><td class="border p-3">${j.orderDate || ''}</td></tr>`;
       }
     });
     expenseData.forEach(e=>{
-      tb.innerHTML+=`<tr class="hover:bg-gray-50"><td class="border p-3 text-red-700">Expense</td><td class="border p-3">${e.title || ''}</td><td class="border p-3 font-semibold">Rs. ${e.amount.toFixed(2)}</td><td class="border p-3">${e.date || ''}</td></tr>`;
+      tb.innerHTML+=`<tr class="hover:bg-gray-50"><td class="border p-3 text-red-700">Expense</td><td class="border p-3">${e.title || ''}</td><td class="border p-3 font-semibold">Rs. ${formatWithCommas(e.amount)}</td><td class="border p-3">${e.date || ''}</td></tr>`;
     });
   }
     
@@ -1493,10 +1498,10 @@
     document.getElementById("stat-progress").textContent= stats.in_progress;
     document.getElementById("stat-completed").textContent= stats.completed;
     document.getElementById("stat-cancelled").textContent= stats.cancelled;
-    document.getElementById("income-total").textContent = `Rs. ${totalIncome.toFixed(2)}`;
-    document.getElementById("expense-total").textContent= `Rs. ${totalExpenses.toFixed(2)}`;
-    document.getElementById("profit-total").textContent = `Rs. ${(totalIncome-totalExpenses).toFixed(2)}`;
-    document.getElementById("money-to-be-collected").textContent = `Rs. ${moneyToBeCollected.toFixed(2)}`;
+    document.getElementById("income-total").textContent = `Rs. ${formatWithCommas(totalIncome)}`;
+    document.getElementById("expense-total").textContent= `Rs. ${formatWithCommas(totalExpenses)}`;
+    document.getElementById("profit-total").textContent = `Rs. ${formatWithCommas(totalIncome-totalExpenses)}`;
+    document.getElementById("money-to-be-collected").textContent = `Rs. ${formatWithCommas(moneyToBeCollected)}`;
 
     const today = new Date().toISOString().split("T")[0];
     const dueTodayCount = jobData.filter(job => job.status === 'in_progress' && job.deadline === today).length;
@@ -1673,7 +1678,7 @@
                           <tbody>
                               <tr class="border-b">
                                   <td class="p-3">${job.details}</td>
-                                  <td class="p-3 text-right">Rs. ${job.price.toFixed(2)}</td>
+                                  <td class="p-3 text-right">Rs. ${formatWithCommas(job.price)}</td>
                               </tr>
                           </tbody>
                       </table>
@@ -1682,15 +1687,15 @@
                       <div class="w-full max-w-xs">
                           <div class="flex justify-between">
                               <span class="font-semibold">Subtotal:</span>
-                              <span>Rs. ${job.price.toFixed(2)}</span>
+                              <span>Rs. ${formatWithCommas(job.price)}</span>
                           </div>
                           <div class="flex justify-between text-red-600">
                               <span class="font-semibold">Discount:</span>
-                              <span>- Rs. ${job.discount.toFixed(2)}</span>
+                              <span>- Rs. ${formatWithCommas(job.discount)}</span>
                           </div>
                           <div class="flex justify-between mt-2 pt-2 border-t-2 border-purple-700">
                               <span class="font-bold text-lg">TOTAL:</span>
-                              <span class="font-bold text-lg">Rs. ${total.toFixed(2)}</span>
+                              <span class="font-bold text-lg">Rs. ${formatWithCommas(total)}</span>
                           </div>
                       </div>
                   </div>
@@ -1712,7 +1717,7 @@
   function updateTotalDisplay() {
       const price = parseFloat(document.getElementById("price").value) || 0;
       const discount = parseFloat(document.getElementById("discount").value) || 0;
-      document.getElementById("total-display").textContent = `Rs. ${(price - discount).toFixed(2)}`;
+      document.getElementById("total-display").textContent = `Rs. ${formatWithCommas(price - discount)}`;
   }
   
   function toggleDeliveryFields(type) {
